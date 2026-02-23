@@ -16,7 +16,7 @@ class SettingsManager:
         except (FileNotFoundError, json.JSONDecodeError):
             return {
                 "download_path": self.default_download_path,
-                "default_quality": "best" # "best", "1080p", "720p", "audio"
+                "default_quality": "1080p" # "1080p", "720p", "480p", "360p", "Audio: Opus", "Audio: Mp3"
             }
 
     def save(self):

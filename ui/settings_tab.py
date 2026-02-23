@@ -22,15 +22,17 @@ class SettingsTab(Adw.PreferencesPage):
 
         # Quality Row
         self.quality_row = Adw.ComboRow(title="Default Quality")
-        model = Gtk.StringList.new(["best", "1080p", "720p", "audio"])
+        model = Gtk.StringList.new(["1080p", "720p", "480p", "360p", "Audio: Opus", "Audio: Mp3"])
         self.quality_row.set_model(model)
         
         # set default based on settings
         default_q = self.app.settings.get("default_quality")
         default_idx = 0
-        if default_q == "1080p": default_idx = 1
-        elif default_q == "720p": default_idx = 2
-        elif default_q == "audio": default_idx = 3
+        if default_q == "720p": default_idx = 1
+        elif default_q == "480p": default_idx = 2
+        elif default_q == "360p": default_idx = 3
+        elif default_q == "Audio: Opus": default_idx = 4
+        elif default_q == "Audio: Mp3": default_idx = 5
 
         self.quality_row.set_selected(default_idx)
         

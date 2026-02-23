@@ -5,6 +5,8 @@ from gi.repository import Gtk, Adw, GLib, Gio
 import urllib.request
 import tempfile
 import os
+import io
+from PIL import Image
 
 class DownloadTab(Adw.Bin):
     def __init__(self, app):
@@ -51,14 +53,17 @@ class DownloadTab(Adw.Bin):
         self.link_entry.connect('changed', self.on_link_changed)
 
         # Quality Dropdown
-        self.quality_model = Gtk.StringList.new(["Best", "1080p", "720p", "Audio"])
+        self.quality_model = Gtk.StringList.new(["1080p", "720p", "480p", "360p", "Audio: Opus", "Audio: Mp3"])
         self.quality_dropdown = Gtk.DropDown(model=self.quality_model)
 
         # Set default quality from settings
         default_q = self.app.settings.get("default_quality")
-        if default_q == "1080p": self.quality_dropdown.set_selected(1)
-        elif default_q == "720p": self.quality_dropdown.set_selected(2)
-        elif default_q == "audio": self.quality_dropdown.set_selected(3)
+        if default_q == "720p": self.quality_dropdown.set_selected(1)
+        elif default_q == "480p": self.quality_dropdown.set_selected(2)
+        elif default_q == "360p": self.quality_dropdown.set_selected(3)
+        elif default_q == "Audio: Opus": self.quality_dropdown.set_selected(4)
+        elif default_q == "Audio: Mp3": self.quality_dropdown.set_selected(5)
+        else: self.quality_dropdown.set_selected(0) # 1080p default
 
         # Input Row (Entry + Dropdown)
         input_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
@@ -118,40 +123,48 @@ class DownloadTab(Adw.Bin):
         
         # Restore user preference if it exists in the new list
         pref = self.app.settings.get("default_quality")
-        if pref == 'audio':
-            pref_str = 'Audio Only'
-        elif pref == 'best':
-            pref_str = 'Best'
-        else:
-            pref_str = pref
-            
         for i, q in enumerate(qualities):
-            if q.lower() == pref_str.lower():
+            if q == pref:
                 self.quality_dropdown.set_selected(i)
                 break
         
         if thumbnail_url:
-            try:
-                # Download thumbnail to temp file
-                req = urllib.request.Request(thumbnail_url, headers={'User-Agent': 'Mozilla/5.0'})
-                fd, path = tempfile.mkstemp(suffix=".jpg")
-                os.close(fd)
-                with urllib.request.urlopen(req) as response, open(path, 'wb') as out_file:
-                    out_file.write(response.read())
-                
-                self.fallback_icon.set_visible(False)
-                # Ensure the local file can be successfully bound as a Gtk.Picture via Gtk.Image replacement or Gio.File
-                # Some GTK4 versions have issues with Picture.set_filename directly depending on backend formats
-                gfile = Gio.File.new_for_path(path)
-                self.thumbnail_image.set_file(gfile)
-                self.thumbnail_image.set_visible(True)
-            except Exception as e:
-                print(f"Error loading thumbnail: {e}")
-                self.fallback_icon.set_visible(True)
-                self.thumbnail_image.set_visible(False)
+            def load_thumbnail_worker():
+                try:
+                    # Download thumbnail to temp file and convert it using Pillow
+                    req = urllib.request.Request(
+                        thumbnail_url, 
+                        headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+                    )
+                    fd, path = tempfile.mkstemp(suffix=".png")
+                    os.close(fd)
+                    
+                    with urllib.request.urlopen(req, timeout=10) as response:
+                        img_data = response.read()
+                        img = Image.open(io.BytesIO(img_data))
+                        if img.mode not in ('RGB', 'RGBA'):
+                            img = img.convert('RGBA')
+                        img.save(path, format="PNG")
+                    
+                    GLib.idle_add(self._apply_thumbnail, path)
+                except Exception as e:
+                    print(f"Error loading thumbnail: {e}")
+                    GLib.idle_add(self._apply_fallback)
+
+            import threading
+            threading.Thread(target=load_thumbnail_worker, daemon=True).start()
         else:
-            self.fallback_icon.set_visible(True)
-            self.thumbnail_image.set_visible(False)
+            self._apply_fallback()
+
+    def _apply_thumbnail(self, path):
+        self.fallback_icon.set_visible(False)
+        gfile = Gio.File.new_for_path(path)
+        self.thumbnail_image.set_file(gfile)
+        self.thumbnail_image.set_visible(True)
+
+    def _apply_fallback(self):
+        self.fallback_icon.set_visible(True)
+        self.thumbnail_image.set_visible(False)
 
     def _on_metadata_error(self, error_msg):
         self.title_label.set_label(f"Error fetching data: {error_msg}")
