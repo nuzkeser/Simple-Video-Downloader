@@ -38,8 +38,22 @@ class SettingsTab(Adw.PreferencesPage):
         
         self.quality_row.connect('notify::selected', self.on_quality_changed)
 
+        # Theme Row
+        self.theme_row = Adw.ComboRow(title="Theme")
+        theme_model = Gtk.StringList.new(["System Default", "Light", "Dark"])
+        self.theme_row.set_model(theme_model)
+
+        default_theme = self.app.settings.get("theme")
+        theme_idx = 0
+        if default_theme == "Light": theme_idx = 1
+        elif default_theme == "Dark": theme_idx = 2
+
+        self.theme_row.set_selected(theme_idx)
+        self.theme_row.connect('notify::selected', self.on_theme_changed)
+
         group.add(self.path_row)
         group.add(self.quality_row)
+        group.add(self.theme_row)
 
     def on_select_folder(self, btn):
         dialog = Gtk.FileDialog.new()
@@ -67,3 +81,17 @@ class SettingsTab(Adw.PreferencesPage):
         if selected_item:
             quality = selected_item.get_string()
             self.app.settings.set("default_quality", quality)
+
+    def on_theme_changed(self, combo_row, param):
+        selected_item = combo_row.get_selected_item()
+        if selected_item:
+            theme = selected_item.get_string()
+            self.app.settings.set("theme", theme)
+            
+            style_manager = Adw.StyleManager.get_default()
+            if theme == "Light":
+                style_manager.set_color_scheme(Adw.ColorScheme.FORCE_LIGHT)
+            elif theme == "Dark":
+                style_manager.set_color_scheme(Adw.ColorScheme.FORCE_DARK)
+            else:
+                style_manager.set_color_scheme(Adw.ColorScheme.DEFAULT)

@@ -10,14 +10,20 @@ class SettingsManager:
         self.settings = self._load()
 
     def _load(self):
+        defaults = {
+            "download_path": self.default_download_path,
+            "default_quality": "1080p", # "1080p", "720p", "480p", "360p", "Audio: Opus", "Audio: Mp3"
+            "theme": "System Default"
+        }
         try:
             with open(self.settings_file, 'r') as f:
-                return json.load(f)
+                settings = json.load(f)
+                for k, v in defaults.items():
+                    if k not in settings:
+                        settings[k] = v
+                return settings
         except (FileNotFoundError, json.JSONDecodeError):
-            return {
-                "download_path": self.default_download_path,
-                "default_quality": "1080p" # "1080p", "720p", "480p", "360p", "Audio: Opus", "Audio: Mp3"
-            }
+            return defaults
 
     def save(self):
         os.makedirs(os.path.dirname(self.settings_file), exist_ok=True)
