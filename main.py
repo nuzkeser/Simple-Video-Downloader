@@ -3,7 +3,7 @@ import gi
 
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
-from gi.repository import Gtk, Adw, Gio, GLib
+from gi.repository import Gtk, Adw, Gio, GLib, Gdk
 
 from ui.main_window import MainWindow
 from core.settings_manager import SettingsManager
@@ -28,6 +28,20 @@ class VideoDownloaderApp(Adw.Application):
             style_manager.set_color_scheme(Adw.ColorScheme.FORCE_DARK)
         else:
             style_manager.set_color_scheme(Adw.ColorScheme.DEFAULT)
+
+        # Apply more readable font
+        provider = Gtk.CssProvider()
+        provider.load_from_string("""
+        window {
+            font-family: 'Segoe UI', 'Inter', 'Roboto', sans-serif;
+            font-size: 11pt;
+        }
+        """)
+        Gtk.StyleContext.add_provider_for_display(
+            Gdk.Display.get_default(),
+            provider,
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
 
         win = self.props.active_window
         if not win:

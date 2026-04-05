@@ -30,13 +30,18 @@ class VideoDownloader:
                             
                     # Build available qualities based on request
                     final_qualities = []
-                    for res in [1080, 720, 480, 360]:
+                    for res in [4320, 2160, 1440, 1080, 720, 480, 360]:
                         # If a format with exact or greater height exists, we can offer this tier
-                        # (yt-dlp will downscale or grab the closest one <= target)
                         # We'll show the option if the video has native resolution >= that tier 
                         # or if yt-dlp reported that exact tier
                         if any(h >= res for h in available_heights) or res in available_heights:
-                            final_qualities.append(f"{res}p")
+                            if res == 4320:
+                                label = "8K (4320p)"
+                            elif res == 2160:
+                                label = "4K (2160p)"
+                            else:
+                                label = f"{res}p"
+                            final_qualities.append(label)
                     
                     # Always append audio options
                     final_qualities.extend(["Audio: Opus", "Audio: Mp3"])
@@ -58,12 +63,12 @@ class VideoDownloader:
             elif quality == 'audio: mp3':
                 format_str = 'bestaudio/best'
             else:
-                # e.g., '1080p' -> '1080'
-                height_str = quality.replace('p', '')
-                try:
-                    height = int(height_str)
+                import re
+                match = re.search(r'(\d+)p', quality)
+                if match:
+                    height = int(match.group(1))
                     format_str = f'bestvideo[height<={height}]+bestaudio/best[height<={height}]/best'
-                except ValueError:
+                else:
                     format_str = 'best'
 
             def hook(d):
@@ -71,8 +76,10 @@ class VideoDownloader:
                     downloaded = d.get('downloaded_bytes', 0)
                     total = d.get('total_bytes') or d.get('total_bytes_estimate', 1)
                     fraction = downloaded / total if total > 0 else 0
-                    speed = d.get('_speed_str', 'N/A')
-                    eta = d.get('_eta_str', 'N/A')
+                    
+                    import re
+                    speed = re.sub(r'\x1b\[[0-9;]*m', '', str(d.get('_speed_str', 'N/A')))
+                    eta = re.sub(r'\x1b\[[0-9;]*m', '', str(d.get('_eta_str', 'N/A')))
                     
                     GLib.idle_add(on_progress, fraction, f"Downloading: {speed} - ETA: {eta}")
                 elif d['status'] == 'finished':
@@ -84,6 +91,7 @@ class VideoDownloader:
                 'progress_hooks': [hook],
                 'quiet': True,
                 'no_warnings': True,
+                'nocolor': True,
             }
 
             # Enforce .mp4 video outputs if it is a video request

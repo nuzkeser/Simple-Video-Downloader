@@ -20,24 +20,6 @@ class SettingsTab(Adw.PreferencesPage):
         select_btn.connect('clicked', self.on_select_folder)
         self.path_row.add_suffix(select_btn)
 
-        # Quality Row
-        self.quality_row = Adw.ComboRow(title="Default Quality")
-        model = Gtk.StringList.new(["1080p", "720p", "480p", "360p", "Audio: Opus", "Audio: Mp3"])
-        self.quality_row.set_model(model)
-        
-        # set default based on settings
-        default_q = self.app.settings.get("default_quality")
-        default_idx = 0
-        if default_q == "720p": default_idx = 1
-        elif default_q == "480p": default_idx = 2
-        elif default_q == "360p": default_idx = 3
-        elif default_q == "Audio: Opus": default_idx = 4
-        elif default_q == "Audio: Mp3": default_idx = 5
-
-        self.quality_row.set_selected(default_idx)
-        
-        self.quality_row.connect('notify::selected', self.on_quality_changed)
-
         # Theme Row
         self.theme_row = Adw.ComboRow(title="Theme")
         theme_model = Gtk.StringList.new(["System Default", "Light", "Dark"])
@@ -52,7 +34,6 @@ class SettingsTab(Adw.PreferencesPage):
         self.theme_row.connect('notify::selected', self.on_theme_changed)
 
         group.add(self.path_row)
-        group.add(self.quality_row)
         group.add(self.theme_row)
 
     def on_select_folder(self, btn):
@@ -75,12 +56,6 @@ class SettingsTab(Adw.PreferencesPage):
         except GLib.Error as e:
             # User canceled or error
             pass
-
-    def on_quality_changed(self, combo_row, param):
-        selected_item = combo_row.get_selected_item()
-        if selected_item:
-            quality = selected_item.get_string()
-            self.app.settings.set("default_quality", quality)
 
     def on_theme_changed(self, combo_row, param):
         selected_item = combo_row.get_selected_item()

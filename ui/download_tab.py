@@ -53,17 +53,9 @@ class DownloadTab(Adw.Bin):
         self.link_entry.connect('changed', self.on_link_changed)
 
         # Quality Dropdown
-        self.quality_model = Gtk.StringList.new(["1080p", "720p", "480p", "360p", "Audio: Opus", "Audio: Mp3"])
+        self.quality_model = Gtk.StringList.new(["Quality"])
         self.quality_dropdown = Gtk.DropDown(model=self.quality_model)
-
-        # Set default quality from settings
-        default_q = self.app.settings.get("default_quality")
-        if default_q == "720p": self.quality_dropdown.set_selected(1)
-        elif default_q == "480p": self.quality_dropdown.set_selected(2)
-        elif default_q == "360p": self.quality_dropdown.set_selected(3)
-        elif default_q == "Audio: Opus": self.quality_dropdown.set_selected(4)
-        elif default_q == "Audio: Mp3": self.quality_dropdown.set_selected(5)
-        else: self.quality_dropdown.set_selected(0) # 1080p default
+        self.quality_dropdown.set_sensitive(False)
 
         # Input Row (Entry + Dropdown)
         input_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
@@ -109,10 +101,14 @@ class DownloadTab(Adw.Bin):
         if text.startswith("http://") or text.startswith("https://"):
             self.download_btn.set_sensitive(False)
             self.title_label.set_label("Fetching metadata...")
+            self.quality_model.splice(0, self.quality_model.get_n_items(), ["Fetching qualities..."])
+            self.quality_dropdown.set_sensitive(False)
             self.app.downloader.fetch_metadata(text, self._on_metadata_success, self._on_metadata_error)
         else:
             self.download_btn.set_sensitive(False)
             self.title_label.set_label("Paste a link to load video details")
+            self.quality_model.splice(0, self.quality_model.get_n_items(), ["Quality"])
+            self.quality_dropdown.set_sensitive(False)
 
     def _on_metadata_success(self, title, thumbnail_url, qualities):
         self.title_label.set_label(title)
@@ -120,13 +116,11 @@ class DownloadTab(Adw.Bin):
         
         # Update qualities
         self.quality_model.splice(0, self.quality_model.get_n_items(), qualities)
-        
-        # Restore user preference if it exists in the new list
-        pref = self.app.settings.get("default_quality")
-        for i, q in enumerate(qualities):
-            if q == pref:
-                self.quality_dropdown.set_selected(i)
-                break
+        if qualities:
+            self.quality_dropdown.set_selected(0)
+            self.quality_dropdown.set_sensitive(True)
+        else:
+            self.quality_dropdown.set_sensitive(False)
         
         if thumbnail_url:
             def load_thumbnail_worker():
