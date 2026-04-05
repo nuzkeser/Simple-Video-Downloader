@@ -1,6 +1,13 @@
 import threading
 import yt_dlp
-from gi.repository import GLib
+from PySide6.QtCore import QObject, Signal
+
+class DownloaderSignals(QObject):
+    metadata_success = Signal(str, object, list)
+    metadata_error = Signal(str)
+    progress = Signal(float, str)
+    finish = Signal()
+    error = Signal(str)
 
 class VideoDownloader:
     def __init__(self):
@@ -8,6 +15,10 @@ class VideoDownloader:
 
     def fetch_metadata(self, url, on_success, on_error):
         """Fetches metadata asynchronously to avoid blocking UI."""
+        signals = DownloaderSignals()
+        signals.metadata_success.connect(on_success)
+        signals.metadata_error.connect(on_error)
+        
         def worker():
             ydl_opts = {
                 'quiet': True,
@@ -46,16 +57,22 @@ class VideoDownloader:
                     # Always append audio options
                     final_qualities.extend(["Audio: Opus", "Audio: Mp3"])
 
-                    # Call GTK callback on main thread
-                    GLib.idle_add(on_success, title, thumbnail, final_qualities)
+                    # Call UI callback on main thread
+                    signals.metadata_success.emit(title, thumbnail, final_qualities)
             except Exception as e:
-                GLib.idle_add(on_error, str(e))
+                signals.metadata_error.emit(str(e))
                 
         thread = threading.Thread(target=worker, daemon=True)
+        thread.signals = signals # retain reference
         thread.start()
 
     def download_video(self, url, quality, path, on_progress, on_finish, on_error):
         """Downloads video and reports progress."""
+        signals = DownloaderSignals()
+        signals.progress.connect(on_progress)
+        signals.finish.connect(on_finish)
+        signals.error.connect(on_error)
+        
         def worker():
             format_str = 'best'
             if quality == 'audio: opus':
@@ -81,9 +98,12 @@ class VideoDownloader:
                     speed = re.sub(r'\x1b\[[0-9;]*m', '', str(d.get('_speed_str', 'N/A')))
                     eta = re.sub(r'\x1b\[[0-9;]*m', '', str(d.get('_eta_str', 'N/A')))
                     
-                    GLib.idle_add(on_progress, fraction, f"Downloading: {speed} - ETA: {eta}")
+                    signals.progress.emit(fraction, f"Downloading: {speed} - ETA: {eta}")
                 elif d['status'] == 'finished':
-                    GLib.idle_add(on_progress, 1.0, "Processing file...")
+                    signals.progress.emit(1.0, "Processing file...")
+
+            import imageio_ffmpeg
+            ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
 
             ydl_opts = {
                 'format': format_str,
@@ -92,6 +112,7 @@ class VideoDownloader:
                 'quiet': True,
                 'no_warnings': True,
                 'nocolor': True,
+                'ffmpeg_location': ffmpeg_path,
             }
 
             # Enforce .mp4 video outputs if it is a video request
@@ -113,9 +134,10 @@ class VideoDownloader:
             try:
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     ydl.download([url])
-                GLib.idle_add(on_finish)
+                signals.finish.emit()
             except Exception as e:
-                GLib.idle_add(on_error, str(e))
-
+                signals.error.emit(str(e))
+                
         thread = threading.Thread(target=worker, daemon=True)
+        thread.signals = signals
         thread.start()

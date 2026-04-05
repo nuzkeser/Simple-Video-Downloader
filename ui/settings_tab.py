@@ -1,72 +1,65 @@
-import gi
-gi.require_version('Gtk', '4.0')
-gi.require_version('Adw', '1')
-from gi.repository import Gtk, Adw, Gio, GLib
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel,
+    QPushButton, QComboBox, QFileDialog, QGroupBox, QLineEdit
+)
+from PySide6.QtCore import Qt
 
-class SettingsTab(Adw.PreferencesPage):
+class SettingsTab(QWidget):
     def __init__(self, app):
         super().__init__()
         self.app = app
 
-        group = Adw.PreferencesGroup(title="General Settings", description="Configure how and where videos are downloaded.")
-        self.add(group)
-
+        layout = QVBoxLayout()
+        layout.setContentsMargins(24, 24, 24, 24)
+        
+        group_box = QGroupBox("General Settings")
+        group_layout = QVBoxLayout()
+        group_layout.setSpacing(16)
+        
         # Download Path Row
-        self.path_row = Adw.ActionRow(title="Download Path")
-        self.path_row.set_subtitle(self.app.settings.get("download_path"))
+        path_layout = QHBoxLayout()
+        path_label = QLabel("Download Path:")
+        path_label.setFixedWidth(120)
+        self.path_display = QLineEdit()
+        self.path_display.setReadOnly(True)
+        self.path_display.setText(self.app.settings.get("download_path"))
         
-        select_btn = Gtk.Button(label="Select Folder")
-        select_btn.set_valign(Gtk.Align.CENTER)
-        select_btn.connect('clicked', self.on_select_folder)
-        self.path_row.add_suffix(select_btn)
-
+        select_btn = QPushButton("Select Folder")
+        select_btn.clicked.connect(self.on_select_folder)
+        
+        path_layout.addWidget(path_label)
+        path_layout.addWidget(self.path_display)
+        path_layout.addWidget(select_btn)
+        
         # Theme Row
-        self.theme_row = Adw.ComboRow(title="Theme")
-        theme_model = Gtk.StringList.new(["System Default", "Light", "Dark"])
-        self.theme_row.set_model(theme_model)
-
+        theme_layout = QHBoxLayout()
+        theme_label = QLabel("Theme:")
+        theme_label.setFixedWidth(120)
+        self.theme_combo = QComboBox()
+        self.theme_combo.addItems(["System Default", "Light", "Dark"])
+        
         default_theme = self.app.settings.get("theme")
-        theme_idx = 0
-        if default_theme == "Light": theme_idx = 1
-        elif default_theme == "Dark": theme_idx = 2
-
-        self.theme_row.set_selected(theme_idx)
-        self.theme_row.connect('notify::selected', self.on_theme_changed)
-
-        group.add(self.path_row)
-        group.add(self.theme_row)
-
-    def on_select_folder(self, btn):
-        dialog = Gtk.FileDialog.new()
-        dialog.set_title("Select Download Folder")
+        self.theme_combo.setCurrentText(default_theme if default_theme else "System Default")
+        self.theme_combo.currentTextChanged.connect(self.on_theme_changed)
         
-        # Set initial folder
-        initial_dir = Gio.File.new_for_path(self.app.settings.get("download_path"))
-        dialog.set_initial_folder(initial_dir)
+        theme_layout.addWidget(theme_label)
+        theme_layout.addWidget(self.theme_combo)
         
-        dialog.select_folder(self.get_root(), None, self.on_folder_selected)
+        group_layout.addLayout(path_layout)
+        group_layout.addLayout(theme_layout)
+        group_box.setLayout(group_layout)
+        
+        layout.addWidget(group_box)
+        layout.addStretch()
+        
+        self.setLayout(layout)
 
-    def on_folder_selected(self, dialog, result):
-        try:
-            folder = dialog.select_folder_finish(result)
-            if folder:
-                path = folder.get_path()
-                self.app.settings.set("download_path", path)
-                self.path_row.set_subtitle(path)
-        except GLib.Error as e:
-            # User canceled or error
-            pass
+    def on_select_folder(self):
+        folder = QFileDialog.getExistingDirectory(self, "Select Download Folder", self.app.settings.get("download_path"))
+        if folder:
+            self.app.settings.set("download_path", folder)
+            self.path_display.setText(folder)
 
-    def on_theme_changed(self, combo_row, param):
-        selected_item = combo_row.get_selected_item()
-        if selected_item:
-            theme = selected_item.get_string()
-            self.app.settings.set("theme", theme)
-            
-            style_manager = Adw.StyleManager.get_default()
-            if theme == "Light":
-                style_manager.set_color_scheme(Adw.ColorScheme.FORCE_LIGHT)
-            elif theme == "Dark":
-                style_manager.set_color_scheme(Adw.ColorScheme.FORCE_DARK)
-            else:
-                style_manager.set_color_scheme(Adw.ColorScheme.DEFAULT)
+    def on_theme_changed(self, theme):
+        self.app.settings.set("theme", theme)
+        self.app.apply_theme()

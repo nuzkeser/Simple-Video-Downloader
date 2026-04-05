@@ -1,76 +1,63 @@
 # Simple Video Downloader
 
-A modern GTK4/Libadwaita desktop application to easily download videos and audio from hundreds of supported websites (including YouTube, Instagram, Facebook, Twitter, and more). Built with Python and powered by `yt-dlp`.
+A modern, cross-platform desktop application to easily download videos and audio from hundreds of supported websites (including YouTube, Instagram, Facebook, Twitter, and more). Built with Python, Qt (PySide6), and powered by `yt-dlp`.
 
 ## ✨ Features
 * **Cross-Platform Extraction:** Supports downloading from all sites supported by `yt-dlp`.
-* **Resolution Selection:** Fetch and choose available video qualities (1080p, 720p, 480p, 360p).
+* **Dynamic Resolution Selection:** Fetch and choose dynamically available video qualities (including 8K, 4K, 1080p, 720p, etc.).
 * **Audio Extraction:** Option to download just the audio in Opus or MP3 formats.
-* **Modern UI:** Clean, responsive, and native-feeling Linux interface built with GTK4 and Adwaita.
-* **Progress Tracking:** Real-time download speeds, file size, and ETA tracking. 
-* **Custom Settings:** Configure default download locations and preferred default qualities via an integrated settings tab.
+* **Modern UI:** Clean, responsive, and native-feeling interface built with PySide6 (Qt). Fully respects your Windows/Linux native Default, Dark, and Light mode themes.
+* **Progress Tracking:** Real-time download speeds, file size, and ETA tracking natively integrated.
+* **Portable FFmpeg:** Automatically bundles and manages `ffmpeg` through Python, so you don't have to install system dependencies!
 
-## 📦 Installation (Flatpak)
-The easiest and recommended way to install Simple Video Downloader on any Linux distribution is via the provided Flatpak bundle. This bundle safely contains all necessary dependencies, including `python`, `Pillow`, `requests`, and `yt-dlp`.
-
-1. Download the `SimpleVideoDownloader.flatpak` file.
-2. Install it by running the following command in your terminal:
-   ```bash
-   flatpak install SimpleVideoDownloader.flatpak
-   ```
-3. Launch the app from your application menu or via terminal:
-   ```bash
-   flatpak run com.nuzkeser.SimpleVideoDownloader
-   ```
-
-## 🛠️ Building from Source
-If you prefer to run the app directly from the source code, you'll need Python and the GTK4 / Libadwaita development headers.
+## 🛠️ Building and Running from Source
+Running the app directly from Source is incredibly simple since the transition to the Qt framework, and no longer requires complex MSYS2 or C compiler configurations.
 
 **Requirements for all platforms:**
 * Python 3.10+
-* `ffmpeg` (Required for Audio Extraction features)
 
-### Linux
-On Linux, install the native GTK4, Libadwaita, and system PyGObject packages through your package manager (e.g., `pacman` on Arch, `apt` on Ubuntu), and install the rest via pip:
+### Windows & Linux Building from Source
 
-```bash
-# Clone the repository
-git clone https://github.com/nuzkeser/Simple-Video-Downloader.git
-cd Simple-Video-Downloader
-
-# Create a virtual environment that can access system-level PyGObject and GTK
-python3 -m venv venv --system-site-packages
-source venv/bin/activate
-
-# Install pure Python dependencies
-pip install yt-dlp Pillow requests PyGObject
-
-# Run the app
-python main.py
-```
-
-### Windows
-Due to the GTK4 and Libadwaita libraries being native C integrations, building from source directly via `pip` typically fails without compiling from C source. It is officially recommended to run using [MSYS2](https://www.msys2.org/), which provides a pre-compiled GTK environment for Windows.
-
-1. Install **MSYS2** from [msys2.org](https://www.msys2.org/).
-2. Open the **"MSYS2 UCRT64"** terminal.
-3. Update the package database fully (you may have to run this twice and restart the terminal if the core system updates):
+1. Clone the repository:
    ```bash
-   pacman -Syu
+   git clone https://github.com/nuzkeser/Simple-Video-Downloader.git
+   cd Simple-Video-Downloader
    ```
-4. Install Python, PyGObject, GTK4, Libadwaita, and the required Python tools:
+
+2. Create a virtual environment and activate it:
    ```bash
-   pacman -S mingw-w64-ucrt-x86_64-python mingw-w64-ucrt-x86_64-python-gobject mingw-w64-ucrt-x86_64-gtk4 mingw-w64-ucrt-x86_64-libadwaita mingw-w64-ucrt-x86_64-python-pillow mingw-w64-ucrt-x86_64-python-requests
+   # Windows
+   python -m venv venv
+   .\venv\Scripts\activate
+
+   # Linux/macOS
+   python3 -m venv venv
+   source venv/bin/activate
    ```
-5. Install `yt-dlp` using pip:
+
+3. Install all pure Python dependencies:
    ```bash
-   python -m pip install yt-dlp --break-system-packages
+   pip install yt-dlp PySide6 imageio-ffmpeg
    ```
-6. Navigate to your project folder inside the terminal (using MSYS2 path format, e.g., `/c/Users/...`) and run the application:
+
+4. Run the application natively:
    ```bash
-   cd /c/path/to/project
    python main.py
    ```
+
+## 📦 Packaging (Windows Executable)
+To build a standalone `.exe` folder that you can share with friends without them needing Python installed, you can use PyInstaller:
+
+1. Make sure you are in your activated virtual environment.
+2. Install PyInstaller:
+   ```bash
+   pip install pyinstaller
+   ```
+3. Run the PyInstaller build command. (*Note: `--collect-all imageio_ffmpeg` is required to bundle the portable FFmpeg engine*):
+   ```bash
+   pyinstaller --noconfirm --onedir --windowed --icon "icon.ico" --collect-all imageio_ffmpeg --name "VideoDownloader" main.py
+   ```
+4. The compiled application will be generated in the `dist/VideoDownloader` folder!
 
 ## 📝 License
 This project is open-source and available for general use.

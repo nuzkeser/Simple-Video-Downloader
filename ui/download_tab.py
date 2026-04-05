@@ -1,180 +1,198 @@
-import gi
-gi.require_version('Gtk', '4.0')
-gi.require_version('Adw', '1')
-from gi.repository import Gtk, Adw, GLib, Gio
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
+    QPushButton, QComboBox, QProgressBar, QApplication
+)
+from PySide6.QtCore import Qt, QObject, Signal
+from PySide6.QtGui import QPixmap, QImage
 import urllib.request
-import tempfile
+import threading
 import os
-import io
-from PIL import Image
 
-class DownloadTab(Adw.Bin):
+class ThumbnailSignals(QObject):
+    success = Signal(object)
+    error = Signal()
+    
+
+class DownloadTab(QWidget):
     def __init__(self, app):
         super().__init__()
         self.app = app
 
-        clamp = Adw.Clamp()
-        clamp.set_maximum_size(600)
-        self.set_child(clamp)
+        layout = QVBoxLayout()
+        layout.setContentsMargins(40, 40, 40, 40)
+        layout.setSpacing(24)
 
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=24)
-        box.set_margin_top(24)
-        box.set_margin_bottom(24)
-        box.set_margin_start(24)
-        box.set_margin_end(24)
-        clamp.set_child(box)
-
-        # Overview Image
-        self.thumbnail_image = Gtk.Picture()
-        self.thumbnail_image.set_size_request(-1, 280)
-        self.thumbnail_image.set_halign(Gtk.Align.CENTER)
-        self.thumbnail_image.set_valign(Gtk.Align.CENTER)
-        # Use a placeholder icon for now
-        self.thumbnail_image.set_resource("/org/gtk/libgtk/icons/16x16/actions/image-missing.png")
-        self.thumbnail_image.set_visible(False)
-
-        # Fallback to an icon image instead if picture resource doesnt work
-        # Try a simpler standard image file or icon
-        self.fallback_icon = Gtk.Image.new_from_icon_name("media-playback-start-symbolic")
-        self.fallback_icon.set_pixel_size(128)
-        self.fallback_icon.add_css_class("dim-label")
-        self.fallback_icon.set_size_request(-1, 280)
-
+        # Image setup
+        self.thumbnail_label = QLabel()
+        self.thumbnail_label.setAlignment(Qt.AlignCenter)
+        self.thumbnail_label.setFixedSize(500, 280)
+        self.thumbnail_label.setStyleSheet("background-color: #2a2a2a; border-radius: 10px;")
+        
+        self.fallback_icon = QLabel("🎬")
+        self.fallback_icon.setAlignment(Qt.AlignCenter)
+        self.fallback_icon.setStyleSheet("font-size: 64px; color: #888; background-color: #2a2a2a; border-radius: 10px;")
+        self.fallback_icon.setFixedSize(500, 280)
+        
+        self.image_layout = QVBoxLayout()
+        self.image_layout.addWidget(self.fallback_icon)
+        self.image_layout.addWidget(self.thumbnail_label)
+        self.thumbnail_label.hide()
+        
+        img_container = QWidget()
+        img_container.setLayout(self.image_layout)
+        
         # Title Label
-        self.title_label = Gtk.Label(label="Paste a link to load video details")
-        self.title_label.add_css_class("title-2")
-        self.title_label.set_wrap(True)
-        self.title_label.set_justify(Gtk.Justification.CENTER)
+        self.title_label = QLabel("Paste a link to load video details")
+        self.title_label.setAlignment(Qt.AlignCenter)
+        self.title_label.setStyleSheet("font-size: 18px; font-weight: bold;")
+        self.title_label.setWordWrap(True)
 
         # Link Entry
-        self.link_entry = Gtk.Entry()
-        self.link_entry.set_placeholder_text("Instagram, Facebook, YouTube, Twitter...")
-        self.link_entry.set_hexpand(True)
-        self.link_entry.connect('changed', self.on_link_changed)
+        self.link_entry = QLineEdit()
+        self.link_entry.setPlaceholderText("Instagram, Facebook, YouTube, Twitter...")
+        self.link_entry.textChanged.connect(self.on_link_changed)
+        self.link_entry.setMinimumHeight(40)
 
         # Quality Dropdown
-        self.quality_model = Gtk.StringList.new(["Quality"])
-        self.quality_dropdown = Gtk.DropDown(model=self.quality_model)
-        self.quality_dropdown.set_sensitive(False)
+        self.quality_dropdown = QComboBox()
+        self.quality_dropdown.addItem("Quality")
+        self.quality_dropdown.setEnabled(False)
+        self.quality_dropdown.setMinimumHeight(40)
+        self.quality_dropdown.setMinimumWidth(160)
 
-        # Input Row (Entry + Dropdown)
-        input_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-        input_box.append(self.link_entry)
-        input_box.append(self.quality_dropdown)
+        # Input Row
+        input_box = QHBoxLayout()
+        input_box.addWidget(self.link_entry, stretch=1)
+        input_box.addWidget(self.quality_dropdown)
 
         # Download Button
-        self.download_btn = Gtk.Button(label="Download")
-        self.download_btn.add_css_class("suggested-action")
-        self.download_btn.add_css_class("pill")
-        self.download_btn.set_sensitive(False)
-        self.download_btn.connect('clicked', self.on_download_clicked)
-
-        # Download button box for centering / pill shape
-        btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        btn_box.set_halign(Gtk.Align.CENTER)
-        btn_box.append(self.download_btn)
+        self.download_btn = QPushButton("Download")
+        self.download_btn.setEnabled(False)
+        self.download_btn.setFixedSize(160, 45)
+        self.download_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #3584e4;
+                color: white;
+                border-radius: 22px;
+                font-weight: bold;
+                font-size: 14px;
+            }
+            QPushButton:disabled {
+                background-color: #4a4a4a;
+                color: #888;
+            }
+            QPushButton:hover {
+                background-color: #4a90e2;
+            }
+        """)
+        self.download_btn.clicked.connect(self.on_download_clicked)
+        
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        btn_layout.addWidget(self.download_btn)
+        btn_layout.addStretch()
 
         # Progress bar
-        self.progress_bar = Gtk.ProgressBar()
-        self.progress_bar.set_visible(False)
-        self.status_label = Gtk.Label(label="")
-        self.status_label.set_visible(False)
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setValue(0)
+        self.progress_bar.hide()
         
-        progress_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        progress_box.append(self.progress_bar)
-        progress_box.append(self.status_label)
+        self.status_label = QLabel()
+        self.status_label.setAlignment(Qt.AlignCenter)
+        self.status_label.hide()
 
-        # Assemble
-        # Using fallback icon initially instead of picture with broken resource
-        self.image_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.image_box.append(self.fallback_icon)
-        self.image_box.append(self.thumbnail_image)
+        layout.addWidget(img_container, 0, Qt.AlignHCenter)
+        layout.addWidget(self.title_label)
+        layout.addLayout(input_box)
+        layout.addLayout(btn_layout)
+        layout.addWidget(self.progress_bar)
+        layout.addWidget(self.status_label)
+        layout.addStretch()
         
-        box.append(self.image_box)
-        box.append(self.title_label)
-        box.append(input_box)
-        box.append(btn_box)
-        box.append(progress_box)
+        self.setLayout(layout)
 
-    def on_link_changed(self, entry):
-        text = entry.get_text().strip()
-        if text.startswith("http://") or text.startswith("https://"):
-            self.download_btn.set_sensitive(False)
-            self.title_label.set_label("Fetching metadata...")
-            self.quality_model.splice(0, self.quality_model.get_n_items(), ["Fetching qualities..."])
-            self.quality_dropdown.set_sensitive(False)
+    def on_link_changed(self, text):
+        text = text.strip()
+        if text.startswith("http://") or text.startswith("https://") or text.startswith("www."):
+            self.download_btn.setEnabled(False)
+            self.title_label.setText("Fetching metadata...")
+            self.quality_dropdown.clear()
+            self.quality_dropdown.addItem("Fetching qualities...")
+            self.quality_dropdown.setEnabled(False)
             self.app.downloader.fetch_metadata(text, self._on_metadata_success, self._on_metadata_error)
         else:
-            self.download_btn.set_sensitive(False)
-            self.title_label.set_label("Paste a link to load video details")
-            self.quality_model.splice(0, self.quality_model.get_n_items(), ["Quality"])
-            self.quality_dropdown.set_sensitive(False)
+            self.download_btn.setEnabled(False)
+            self.title_label.setText("Paste a link to load video details")
+            self.quality_dropdown.clear()
+            self.quality_dropdown.addItem("Quality")
+            self.quality_dropdown.setEnabled(False)
 
     def _on_metadata_success(self, title, thumbnail_url, qualities):
-        self.title_label.set_label(title)
-        self.download_btn.set_sensitive(True)
+        self.title_label.setText(title)
+        self.download_btn.setEnabled(True)
         
-        # Update qualities
-        self.quality_model.splice(0, self.quality_model.get_n_items(), qualities)
+        self.quality_dropdown.clear()
         if qualities:
-            self.quality_dropdown.set_selected(0)
-            self.quality_dropdown.set_sensitive(True)
+            self.quality_dropdown.addItems(qualities)
+            self.quality_dropdown.setEnabled(True)
         else:
-            self.quality_dropdown.set_sensitive(False)
-        
+            self.quality_dropdown.addItem("No Qualities")
+            self.quality_dropdown.setEnabled(False)
+
         if thumbnail_url:
+            signals = ThumbnailSignals()
+            signals.success.connect(self._apply_thumbnail)
+            signals.error.connect(self._apply_fallback)
+            
             def load_thumbnail_worker():
                 try:
-                    # Download thumbnail to temp file and convert it using Pillow
                     req = urllib.request.Request(
                         thumbnail_url, 
-                        headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+                        headers={'User-Agent': 'Mozilla/5.0'}
                     )
-                    fd, path = tempfile.mkstemp(suffix=".png")
-                    os.close(fd)
-                    
                     with urllib.request.urlopen(req, timeout=10) as response:
                         img_data = response.read()
-                        img = Image.open(io.BytesIO(img_data))
-                        if img.mode not in ('RGB', 'RGBA'):
-                            img = img.convert('RGBA')
-                        img.save(path, format="PNG")
-                    
-                    GLib.idle_add(self._apply_thumbnail, path)
+                        
+                        img = QImage()
+                        img.loadFromData(img_data)
+                        pixmap = QPixmap.fromImage(img).scaled(500, 280, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+                        
+                        signals.success.emit(pixmap)
+                        
                 except Exception as e:
-                    print(f"Error loading thumbnail: {e}")
-                    GLib.idle_add(self._apply_fallback)
+                    signals.error.emit()
 
-            import threading
-            threading.Thread(target=load_thumbnail_worker, daemon=True).start()
+            t = threading.Thread(target=load_thumbnail_worker, daemon=True)
+            t.signals = signals
+            t.start()
         else:
             self._apply_fallback()
 
-    def _apply_thumbnail(self, path):
-        self.fallback_icon.set_visible(False)
-        gfile = Gio.File.new_for_path(path)
-        self.thumbnail_image.set_file(gfile)
-        self.thumbnail_image.set_visible(True)
+    def _apply_thumbnail(self, pixmap):
+        self.fallback_icon.hide()
+        self.thumbnail_label.setPixmap(pixmap)
+        self.thumbnail_label.show()
 
     def _apply_fallback(self):
-        self.fallback_icon.set_visible(True)
-        self.thumbnail_image.set_visible(False)
+        self.fallback_icon.show()
+        self.thumbnail_label.hide()
 
     def _on_metadata_error(self, error_msg):
-        self.title_label.set_label(f"Error fetching data: {error_msg}")
-        self.download_btn.set_sensitive(False)
+        self.title_label.setText(f"Error fetching data: {error_msg}")
+        self.download_btn.setEnabled(False)
 
-    def on_download_clicked(self, btn):
-        self.link_entry.set_sensitive(False)
-        self.download_btn.set_sensitive(False)
-        self.progress_bar.set_visible(True)
-        self.status_label.set_visible(True)
-        self.progress_bar.set_fraction(0.1)
-        self.status_label.set_label("Starting download...")
+    def on_download_clicked(self):
+        self.link_entry.setEnabled(False)
+        self.download_btn.setEnabled(False)
+        self.progress_bar.show()
+        self.status_label.show()
+        self.progress_bar.setValue(10) # 10%
+        self.status_label.setText("Starting download...")
         
-        url = self.link_entry.get_text().strip()
-        quality_item = self.quality_dropdown.get_selected_item()
-        quality = quality_item.get_string().lower() if quality_item else "best"
+        url = self.link_entry.text().strip()
+        quality = self.quality_dropdown.currentText().lower()
+        if not quality or quality == "quality" or quality == "fetching qualities...":
+            quality = "best"
         if quality == "audio only": quality = "audio"
         path = self.app.settings.get("download_path")
         
@@ -186,17 +204,17 @@ class DownloadTab(Adw.Bin):
         )
 
     def _on_download_progress(self, fraction, status_text):
-        self.progress_bar.set_fraction(fraction)
-        self.status_label.set_label(status_text)
+        self.progress_bar.setValue(int(fraction * 100))
+        self.status_label.setText(status_text)
         
     def _on_download_finish(self):
-        self.progress_bar.set_fraction(1.0)
-        self.status_label.set_label("Download completed successfully!")
-        self.link_entry.set_sensitive(True)
-        self.download_btn.set_sensitive(True)
+        self.progress_bar.setValue(100)
+        self.status_label.setText("Download completed successfully!")
+        self.link_entry.setEnabled(True)
+        self.download_btn.setEnabled(True)
         
     def _on_download_error(self, error_msg):
-        self.status_label.set_label(f"Error: {error_msg}")
-        self.progress_bar.set_fraction(0.0)
-        self.link_entry.set_sensitive(True)
-        self.download_btn.set_sensitive(True)
+        self.status_label.setText(f"Error: {error_msg}")
+        self.progress_bar.setValue(0)
+        self.link_entry.setEnabled(True)
+        self.download_btn.setEnabled(True)

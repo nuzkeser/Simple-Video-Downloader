@@ -2,3 +2,10 @@
 core/__pycache__
 ui/__pycache__
 __pycache__
+*.png
+*.ico
+*.jpg
+*.svg
+build/
+dist/
+*.spec
