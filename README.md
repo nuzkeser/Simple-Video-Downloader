@@ -42,19 +42,5 @@ A modern, cross-platform desktop application to easily download videos and audio
    python main.py
    ```
 
-## 📦 Packaging (Windows Executable)
-To build a standalone `.exe` folder that you can share with friends without them needing Python installed, you can use PyInstaller:
-
-1. Make sure you are in your activated virtual environment.
-2. Install PyInstaller:
-   ```bash
-   pip install pyinstaller
-   ```
-3. Run the PyInstaller build command. (*Note: `--collect-all imageio_ffmpeg` bundles the FFmpeg engine, and `--add-data` ensures the icon is embedded for the window*):
-   ```bash
-   pyinstaller --noconfirm --onedir --windowed --icon "icon.ico" --add-data "icon.ico;." --collect-all imageio_ffmpeg --name "VideoDownloader" main.py
-   ```
-4. The compiled application will be generated in the `dist/VideoDownloader` folder!
-
 ## 📝 License
 This project is open-source and available for general use.
