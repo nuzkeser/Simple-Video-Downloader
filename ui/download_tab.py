@@ -26,11 +26,13 @@ class DownloadTab(QWidget):
         self.thumbnail_label = QLabel()
         self.thumbnail_label.setAlignment(Qt.AlignCenter)
         self.thumbnail_label.setFixedSize(500, 280)
-        self.thumbnail_label.setStyleSheet("background-color: #2a2a2a; border-radius: 10px;")
+        self.thumbnail_label.setObjectName("ImageSetup")
+        self.thumbnail_label.setStyleSheet("border-radius: 10px;")
         
         self.fallback_icon = QLabel("🎬")
         self.fallback_icon.setAlignment(Qt.AlignCenter)
-        self.fallback_icon.setStyleSheet("font-size: 64px; color: #888; background-color: #2a2a2a; border-radius: 10px;")
+        self.fallback_icon.setObjectName("IconSetup")
+        self.fallback_icon.setStyleSheet("font-size: 64px; border-radius: 10px;")
         self.fallback_icon.setFixedSize(500, 280)
         
         self.image_layout = QVBoxLayout()

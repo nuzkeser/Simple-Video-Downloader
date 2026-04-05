@@ -10,13 +10,10 @@ A modern, cross-platform desktop application to easily download videos and audio
 * **Progress Tracking:** Real-time download speeds, file size, and ETA tracking natively integrated.
 * **Portable FFmpeg:** Automatically bundles and manages `ffmpeg` through Python, so you don't have to install system dependencies!
 
-## 🛠️ Building and Running from Source
-Running the app directly from Source is incredibly simple since the transition to the Qt framework, and no longer requires complex MSYS2 or C compiler configurations.
+### Windows & Linux Building from Source
 
 **Requirements for all platforms:**
 * Python 3.10+
-
-### Windows & Linux Building from Source
 
 1. Clone the repository:
    ```bash
@@ -53,9 +50,9 @@ To build a standalone `.exe` folder that you can share with friends without them
    ```bash
    pip install pyinstaller
    ```
-3. Run the PyInstaller build command. (*Note: `--collect-all imageio_ffmpeg` is required to bundle the portable FFmpeg engine*):
+3. Run the PyInstaller build command. (*Note: `--collect-all imageio_ffmpeg` bundles the FFmpeg engine, and `--add-data` ensures the icon is embedded for the window*):
    ```bash
-   pyinstaller --noconfirm --onedir --windowed --icon "icon.ico" --collect-all imageio_ffmpeg --name "VideoDownloader" main.py
+   pyinstaller --noconfirm --onedir --windowed --icon "icon.ico" --add-data "icon.ico;." --collect-all imageio_ffmpeg --name "VideoDownloader" main.py
    ```
 4. The compiled application will be generated in the `dist/VideoDownloader` folder!
 

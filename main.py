@@ -1,6 +1,7 @@
 import sys
+import os
 from PySide6.QtWidgets import QApplication
-from PySide6.QtGui import QPalette, QColor, QFont
+from PySide6.QtGui import QPalette, QColor, QFont, QIcon
 from PySide6.QtCore import Qt
 import ctypes
 
@@ -8,10 +9,20 @@ from ui.main_window import MainWindow
 from core.settings_manager import SettingsManager
 from core.downloader import VideoDownloader
 
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
 class VideoDownloaderApp(QApplication):
     def __init__(self, argv):
         super().__init__(argv)
         self.setApplicationName("Simple Video Downloader")
+        self.setWindowIcon(QIcon(resource_path("icon.ico")))
         
         # Set app ID for Windows so taskbar behaves correctly
         try:
@@ -119,6 +130,10 @@ class VideoDownloaderApp(QApplication):
                 QGroupBox::title {
                     color: #ddd;
                 }
+                QLabel#ImageSetup, QLabel#IconSetup {
+                    background-color: #2a2a2a;
+                    color: #888;
+                }
                 QTabBar::tab {
                     color: #888;
                 }
@@ -171,6 +186,10 @@ class VideoDownloaderApp(QApplication):
                 }
                 QGroupBox::title {
                     color: #333;
+                }
+                QLabel#ImageSetup, QLabel#IconSetup {
+                    background-color: #e6e6e6;
+                    color: #888;
                 }
                 QTabBar::tab {
                     color: #666;
