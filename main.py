@@ -32,7 +32,6 @@ class VideoDownloaderApp(QApplication):
     def __init__(self, argv):
         super().__init__(argv)
         self.setApplicationName("Simple Video Downloader")
-        self.setWindowIcon(QIcon(resource_path("icon.ico")))
         
         # Set app ID for Windows so taskbar behaves correctly
         try:
